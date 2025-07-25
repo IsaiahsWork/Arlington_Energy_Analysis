@@ -1,222 +1,188 @@
-# Arlington_Energy_Analysis
+# 📈 Goldman Sachs Quantitative Analysis (2020–2025)
 
-Energy-efficient buildings are essential for creating a sustainable and cost-effective city. An optimized energy system lowers costs, reduces environmental impact, enhances building performance, and ensures equitable access to energy efficiency. By analyzing building energy consumption data in Arlington, VA, I aimed to identify trends, detect anomalies, and assess efficiency across different building types using SQL.
+🔹 Is Goldman Sachs (GS) a strong investment compared to the market?
 
-One critical aspect of this analysis was evaluating the impact of Arlington’s award-winning Community Energy Plan (CEP). This long-term vision aims to transform energy generation, usage, and distribution, guiding the county toward a carbon-neutral future by 2050.
+I conducted a quantitative SQL analysis of GS's Sharpe Ratio, RSI, 50-day & 200-day moving averages, and market correlation with S\&P 500 (SPY) from **March 2020 – March 2025** to assess its risk-adjusted performance. I collected the data from Yahoo Finance.
 
+---
 
+## 📦 Data Structure Overview
 
-📊 What I Analyzed
-For this analysis, I was particularly interested in exploring the following areas:
+| Column Name   | Description                                       |
+| ------------- | ------------------------------------------------- |
+| Date          | Trading day (business calendar)                   |
+| Volume        | Number of shares traded on the day                |
+| Close\_Last   | Final traded price of the day                     |
+| Daily\_Return | Percentage change in closing price from prior day |
 
-✔️ Electricity & Gas Usage Intensity (EUI) – Energy consumed per square foot. 
+SPY and GS datasets followed the same schema, joined via `Date`.
 
-✔️ Total & Average Energy Consumption – Understanding consumption patterns across buildings. 
+---
 
-✔️ Identifying Most & Least Energy-Intensive Buildings – Finding inefficiencies. 
+## 🎯 Analysis Objectives
 
-✔️ Energy Consumption by Building Type – Which facility types consume the most? 
+✔️ Evaluate GS's **risk-adjusted returns** using the Sharpe Ratio
+✔️ Detect **momentum trends** with RSI
+✔️ Compare GS's **performance relative to S\&P 500 (SPY)**
+✔️ Measure **trend strength** using 50-day and 200-day moving averages
+✔️ Translate SQL analytics into investment insights
 
-✔️ Detecting Anomalies in Energy Usage – Spotting outliers and inefficiencies.
+---
 
-Let’s take a look at the data:
+## 🔧 Methods Used
 
-This data was retrieved from Data.gov and can be found here. The dataset represents eight-teen years (2000-2018) of building energy usage within Arlington County, VA. The data includes attributes such as Use Type, Address, Year, Electric Per KWH, Natural Gas Per Therm*, among others.
+* Common Table Expressions (CTEs)
+* Window Functions: `LAG()`, `AVG()`, `STDEV()`, `ROWS BETWEEN`
+* Time-Series SQL Analysis
+* Join operations for cross-symbol comparisons
 
-*Therms measure the energy output of a unit of gas. One therm is the amount of energy or heat equivalent to 100,000 BTU, or British Thermal Units.
+---
 
+## 📊 Sharpe Ratio Analysis (Risk-Adjusted Return)
 
+✔ **What it is**: Measures how much excess return an investment generates per unit of risk.
+Used a CTE to calculate daily return using `LAG()` and then computed the Sharpe Ratio as average return divided by return volatility.
 
-⚡ Electricity and Gas Intensity
-I was interested in analyzing the electricity and gas intensity for different buildings. To achieve this, I used SUM and AVG aggregation functions to calculate total energy consumption and usage per square foot. I used NULLIF, ensuring that I avoid division errors when a building has incomplete data.
+### ✅ Query Used:
 
-
-Electric Intensity Query
-
-Electric Intensity Result
-Electricity Usage Intensity (Highest per Sq Ft) 
-
-🔌🏢 Network Operation Center – High-power computing and server loads.
-
-🚍 Bus Operations (Shirlington & ART Bus Facility) – Transit and lighting needs.
-
-⛸️ Powhatan Skate Park – Extensive lighting & HVAC usage.
-
-Next, the gas usage intensity. I utilized GROUP BY to group the results by building name and SORT BY to sorted them in descending order based on gas usage per square foot. This allowed me to identify the most gas-intensive buildings and compare energy efficiency across different facilities.
-
-
-Gas Intensity Query
-
-
-
-Gas Intensity Result
-
-
-Gas Usage Intensity (Highest Therm per Sq Ft) 
-
-🔥🏟️ Gunston Bubble (Tented Sports Facility) – Heating for enclosed structure.
-
-🚌 ART Bus Facility – Gas consumption for heating & maintenance.
-
-🔧 DPW Bays – Industrial heating demands.
-
-
-
-🏛️ Who Consumes the Most Energy Overall?
-Next, I was interested in analyzing the Total & Average Energy Consumption. Once again utilizing aggregations functions like SUM and AVG and using AS statement to label the new data aggregated. I ensured I analyzed the data by place name by using the GROUP BY statement.
-
-
-
-
-Electric Total and Average Query
-
-
-
-Electric Total and Average Result
-The Water Pollution Plant & Court System (including Police Operations) topped electricity usage—understandable given: 
-
-✔️ Water treatment requires continuous filtration & pumping. 
-
-✔️ Government & law enforcement facilities operate 24/7.
-
-
-Gas Total and Average Query
 ```sql
-USE SqlProjects
-	SELECT
-	Place_Name,
-	SUM(Electric_KWH) AS Total_Electricity_Usage,
-	AVG(Electric_KWH) AS Average_Electricity_Usage,
-	SUM(Natural_Gas_Therm) AS Total_Gas_Usage,
-	AVG(Natural_Gas_Therm) AS Average_Gas_Usage
-FROM Arlington_Energy
-GROUP BY Place_Name
-ORDER BY Average_Gas_Usage DESC;
+WITH Returned_Data AS (
+  SELECT
+    Date,
+    Volume,
+    Close_Last,
+    (Close_Last - LAG(Close_Last) OVER (ORDER BY DATE)) / LAG(Close_last) OVER (ORDER BY Date) AS Daily_Return
+  FROM SqlProjects.dbo.GS
+)
+SELECT
+  Date,
+  Volume,
+  Close_Last,
+  Daily_Return,
+  (AVG(Daily_Return) OVER (ORDER BY Date)) / (STDEV(Daily_Return) OVER (ORDER BY Date)) AS Sharpe_Ratio
+FROM Returned_Data;
 ```
 
-Gas Total and Average Result
-For gas consumption, the Court System, Water Pollution Plant, and Equipment Division led usage—likely due to heating demands in large facilities.
+### 📊 Findings:
 
+* 📉 Lowest (-0.45) on **March 18, 2020** → Extreme market uncertainty during COVID-19 crash.
+* 📈 Peak (\~0.12) in **April 2021** → Strong economic rebound.
+* 🟰 Recent Stability (\~0.06) in **2025** → Moderate risk-adjusted returns.
 
+📌 **Implication**: GS has moved from extreme risk to a more stable investment option over time.
 
-🏢 Energy Consumption by Building Type
-To analyze energy consumption across different facility types, I used SQL’s GROUP BY function to categorize building's use type based on their electricity and gas usage.
+---
 
+## 🔄 RSI (Relative Strength Index – Momentum Indicator)
 
-Electric By Use Type Query
+✔ **What it is**: RSI measures the speed and magnitude of price movements to identify overbought or oversold conditions (scale from 0 to 100).
 
+Two CTEs were used to calculate Price\_Change and then rolling averages of gains and losses.
 
+### ✅ Query Used:
 
-Electric By Use Type Result
-Electricity Consumption (Highest Average Usage) 
-
-🔌 🏥 Human Services – Despite having only 5 buildings, this category had the highest average electricity usage. 
-
-🏗️ Specialty Buildings & General Offices followed closely behind.
-
-
-Gas By Use Type Query
 ```sql
-USE SqlProjects
-	SELECT 
-	Use_Type,
-	COUNT (DISTINCT Place_Name) AS Num_Buildings,
-	AVG(Electric_KWH) AS Average_Electric_Usage,
-	AVG(Natural_Gas_Therm) AS Average_Gas_Usage
-FROM Arlington_Energy
-GROUP BY Use_Type
-ORDER BY Average_Gas_Usage DESC;
+WITH Price_Changes AS (
+  SELECT
+    Date,
+    Volume,
+    Close_Last,
+    (Close_Last - LAG(Close_Last) OVER (ORDER BY DATE)) / LAG(Close_last) OVER (ORDER BY Date) AS Price_Change
+  FROM SqlProjects.dbo.GS
+),
+Avg_Gains_Losses AS (
+  SELECT 
+    Date,
+    Volume,
+    Close_Last,
+    AVG(CASE WHEN Price_Change > 0 THEN Price_Change ELSE 0 END) OVER (ORDER BY Date ROWS BETWEEN 13 PRECEDING AND CURRENT ROW) AS Avg_Gain,
+    AVG(CASE WHEN Price_Change < 0 THEN ABS(Price_Change) ELSE 0 END) OVER (ORDER BY Date ROWS BETWEEN 13 PRECEDING AND CURRENT ROW) AS Avg_Loss
+  FROM Price_Changes
+)
+SELECT
+  Date,
+  Volume,
+  Close_Last,
+  100 - (100 / (1 + (Avg_Gain / NULLIF(Avg_Loss, 0)))) AS RSI
+FROM Avg_Gains_Losses
+ORDER BY Date DESC;
 ```
 
-Gas By Use Type Results
-Gas Consumption (Highest Average Usage) 
+### 📊 Findings:
 
-🔥 🚔 Public Safety Facilities – With 19 buildings, these had the highest gas usage, likely due to heating needs in police stations, fire departments, and emergency response centers. 
+* 📈 Overbought (RSI > 70) on **Feb 3, 2025**: RSI **81.95**
+* 📉 Oversold (RSI < 30) on **March 10, 2025**: RSI **15.01**
+* 📉 Recent (March 13, 2025): RSI **20.1**, still oversold
 
-🏢 Specialty Buildings & General Offices ranked next in gas consumption.
+📌 **Implication**: GS was overbought in early 2025 but is now oversold, suggesting a potential reversal.
 
+---
 
+## 📈 GS vs. S\&P 500: Market Performance Comparison
 
-🏗️ Are Newer Buildings More Efficient?
-I used the CASE WHEN statement to classify buildings into 3 age groups, then used the GROUP BY and AVG function to evaluate how the average amount of energy used based on the age of the building.
+✔ **What it is**: Measures how GS performed relative to the overall market (S\&P 500).
 
+Daily returns were calculated using `LAG()` for both GS and SPY and then joined by date.
 
+### ✅ Query Used:
 
-
-Building Group Query
 ```sql
-USE SqlProjects
 SELECT 
-	AVG(Electric_KWH) AS Avg_Electric_KWH,
-	AVG(Natural_Gas_Therm) AS Avg_Gas_Therm,
-	CASE WHEN "Year" < 2006 THEN 'Old'
-	WHEN "Year" BETWEEN 2006 AND 2012 THEN 'Recent'
-	ELSE 'New'
-	END AS Building_Age_Group
-FROM Arlington_Energy
-GROUP BY 
-		(CASE WHEN "Year" < 2006 THEN 'Old'
-	WHEN "Year" BETWEEN 2006 AND 2012 THEN 'Recent'
-	ELSE 'New'
-	END)
-ORDER BY Avg_Gas_Therm ASC;
+  GS.Date,
+  GS.Close_Last AS GS_Close,
+  (GS.Close_Last - LAG(GS.Close_Last) OVER (ORDER BY GS.Date)) / LAG(GS.Close_Last) OVER (ORDER BY GS.Date) AS Stock_Return,
+  SPY.Close_Last AS SPY_Close,
+  (SPY.Close_Last - LAG(SPY.Close_Last) OVER (ORDER BY SPY.Date)) / LAG(SPY.Close_Last) OVER (ORDER BY SPY.Date) AS Market_Return
+FROM SqlProjects.dbo.GS
+JOIN SqlProjects.dbo.SPY ON GS.Date = SPY.Date
+ORDER BY Stock_Return DESC;
 ```
 
+### 📊 Findings:
 
+* ✅ GS outperformed SPY in **2021** and **2023**
+* 📅 On **Nov 6, 2024**: GS +13.09% vs. SPY +2.48%
+* ⚠️ GS was more volatile than SPY
 
-Building Group Results
-🏠 Buildings from 2012+ had the lowest average energy use—indicating better efficiency designs. 
+📌 **Implication**: GS amplifies market trends—higher gains in bull markets, steeper losses in bear markets.
 
-⚡ Buildings from 2006-2012 had the highest electricity consumption—potentially due to increased electronic systems without strict efficiency standards. 
+---
 
-🔥 The oldest buildings (2000-2006) had the highest gas usage—suggesting older heating systems & insulation inefficiencies.
+## 📊 50-Day vs. 200-Day Moving Averages – Trend Strength
 
+✔ **What it is**: Moving averages smooth price action and identify long/short-term trends.
 
+Used `AVG()` window functions with `ROWS BETWEEN` for moving average calculations.
 
-🚨 Detecting Energy Usage Anomalies (Outliers in Consumption)
-Next, I wanted to identify buildings with unusually high electricity consumption compared to their historical usage. To achieve this, I used SQL with statistical measures such as average (AVG) and standard deviation (STDEV) to flag outliers.
-
-
-
-
-Electric Outlier Query
+### ✅ Query Used:
 
 ```sql
-USE SqlProjects
-	SELECT
-	Place_Name,
-	MAX(Year) AS Year,
-	SUM(Electric_KWH)AS Total_Electricity_Usage_KWH,
-	(AVG(Electric_KWH) + 2 * STDEV(Electric_KWH)) AS Electric_Usage_Outliers
-FROM Arlington_Energy
-WHERE Electric_KWH > (SELECT AVG(Electric_KWH) + 2 * STDEV(Electric_KWH) FROM Arlington_Energy)
-GROUP BY Place_name
-ORDER BY Year DESC;
+SELECT 
+  Date,
+  Close_Last,
+  AVG(Close_Last) OVER (ORDER BY Date ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS Moving_Avg_50,
+  AVG(Close_Last) OVER (ORDER BY Date ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS Moving_Avg_200
+FROM SqlProjects.dbo.GS
+ORDER BY Moving_Avg_200 DESC;
 ```
 
-Electric Outlier Result
+### 📊 Findings:
 
-Electricity Outliers 
+* 📈 **Golden Cross** (June 2021): Bullish signal
+* 📉 **Death Cross** (March 2022): Bearish signal
+* 🟰 **2025**: MAs converging—possible breakout ahead
 
-⚡ 📍 Courthouse Plaza & Water Pollution Control Plant saw a significant surge in electricity usage in 2015. This could be due to operational expansions, equipment upgrades, or inefficiencies in the system.
+📌 **Implication**: Trend structure suggests upcoming breakout; keep an eye on moving averages.
 
+---
 
-Gas Outlier Query
-Gas Outlier Result
+## 🔍 Investment Insights from the Analysis
 
-Gas Outliers 
+✔ GS was highly volatile during the 2020 market crash, with negative Sharpe Ratios.
+✔ GS outperformed the market in bullish periods but was more volatile in downturns.
+✔ RSI suggests GS is currently oversold, possibly a buy opportunity.
+✔ Moving Averages confirmed key trend shifts, with a new trend possibly forming.
 
-🔥 🏢 Detention Center (2018), Water Pollution Control Plant (2015), and Courts Police (2014) showed unexpected spikes in gas consumption. These anomalies could indicate changes in heating demands, infrastructure issues, or operational shifts.
+---
 
-
-
-Key Takeaways
-✔️ Critical infrastructure (transit, law enforcement, and water treatment) consumes the most energy—highlighting opportunities for optimization. 
-
-✔️ Older buildings tend to be less energy efficient, reinforcing the importance of retrofitting and modernizing facilities. 
-
-✔️ Facility type impacts energy demand—server-heavy, industrial, and 24/7 operations significantly drive energy intensity. 
-
-✔️Detecting outliers is crucial for identifying inefficiencies, optimizing energy usage, and reducing costs across facilities.
-
-As I continue refining my analysis, please feel free to leave a comment below or connect with me here.
+📁 Files and further work can be found on my [Portfolio](https://isaiahlaruewright.wixsite.com/isaiahswork) or [LinkedIn](https://www.linkedin.com/in/isaiah-l-wright/). Thank you for reading!
